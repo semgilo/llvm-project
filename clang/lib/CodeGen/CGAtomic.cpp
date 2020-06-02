@@ -119,8 +119,9 @@ namespace {
         ValueTy = lvalue.getType();
         ValueSizeInBits = C.getTypeSize(ValueTy);
         AtomicTy = ValueTy = CGF.getContext().getExtVectorType(
-            lvalue.getType(), lvalue.getExtVectorAddress()
-                                  .getElementType()->getVectorNumElements());
+            lvalue.getType(), cast<llvm::VectorType>(
+                                  lvalue.getExtVectorAddress().getElementType())
+                                  ->getNumElements());
         AtomicSizeInBits = C.getTypeSize(AtomicTy);
         AtomicAlign = ValueAlign = lvalue.getAlignment();
         LVal = lvalue;
@@ -139,7 +140,7 @@ namespace {
     const LValue &getAtomicLValue() const { return LVal; }
     llvm::Value *getAtomicPointer() const {
       if (LVal.isSimple())
-        return LVal.getPointer();
+        return LVal.getPointer(CGF);
       else if (LVal.isBitField())
         return LVal.getBitFieldPointer();
       else if (LVal.isVectorElt())
@@ -343,14 +344,14 @@ bool AtomicInfo::requiresMemSetZero(llvm::Type *type) const {
 
 bool AtomicInfo::emitMemSetZeroIfNecessary() const {
   assert(LVal.isSimple());
-  llvm::Value *addr = LVal.getPointer();
+  llvm::Value *addr = LVal.getPointer(CGF);
   if (!requiresMemSetZero(addr->getType()->getPointerElementType()))
     return false;
 
   CGF.Builder.CreateMemSet(
       addr, llvm::ConstantInt::get(CGF.Int8Ty, 0),
       CGF.getContext().toCharUnitsFromBits(AtomicSizeInBits).getQuantity(),
-      LVal.getAlignment().getQuantity());
+      LVal.getAlignment().getAsAlign());
   return true;
 }
 
@@ -1628,7 +1629,7 @@ Address AtomicInfo::materializeRValue(RValue rvalue) const {
   LValue TempLV = CGF.MakeAddrLValue(CreateTempAlloca(), getAtomicType());
   AtomicInfo Atomics(CGF, TempLV);
   Atomics.emitCopyIntoMemory(rvalue);
-  return TempLV.getAddress();
+  return TempLV.getAddress(CGF);
 }
 
 llvm::Value *AtomicInfo::convertRValueToInt(RValue RVal) const {
@@ -1826,7 +1827,7 @@ void AtomicInfo::EmitAtomicUpdateOp(
   auto Failure = llvm::AtomicCmpXchgInst::getStrongestFailureOrdering(AO);
 
   // Do the atomic load.
-  auto *OldVal = EmitAtomicLoadOp(AO, IsVolatile);
+  auto *OldVal = EmitAtomicLoadOp(Failure, IsVolatile);
   // For non-simple lvalues perform compare-and-swap procedure.
   auto *ContBB = CGF.createBasicBlock("atomic_cont");
   auto *ExitBB = CGF.createBasicBlock("atomic_exit");
@@ -1908,7 +1909,7 @@ void AtomicInfo::EmitAtomicUpdateOp(llvm::AtomicOrdering AO, RValue UpdateRVal,
   auto Failure = llvm::AtomicCmpXchgInst::getStrongestFailureOrdering(AO);
 
   // Do the atomic load.
-  auto *OldVal = EmitAtomicLoadOp(AO, IsVolatile);
+  auto *OldVal = EmitAtomicLoadOp(Failure, IsVolatile);
   // For non-simple lvalues perform compare-and-swap procedure.
   auto *ContBB = CGF.createBasicBlock("atomic_cont");
   auto *ExitBB = CGF.createBasicBlock("atomic_exit");
@@ -1975,8 +1976,8 @@ void CodeGenFunction::EmitAtomicStore(RValue rvalue, LValue dest,
   // If this is an aggregate r-value, it should agree in type except
   // maybe for address-space qualification.
   assert(!rvalue.isAggregate() ||
-         rvalue.getAggregateAddress().getElementType()
-           == dest.getAddress().getElementType());
+         rvalue.getAggregateAddress().getElementType() ==
+             dest.getAddress(*this).getElementType());
 
   AtomicInfo atomics(*this, dest);
   LValue LVal = atomics.getAtomicLValue();
@@ -2018,6 +2019,10 @@ void CodeGenFunction::EmitAtomicStore(RValue rvalue, LValue dest,
         intValue, addr.getElementType(), /*isSigned=*/false);
     llvm::StoreInst *store = Builder.CreateStore(intValue, addr);
 
+    if (AO == llvm::AtomicOrdering::Acquire)
+      AO = llvm::AtomicOrdering::Monotonic;
+    else if (AO == llvm::AtomicOrdering::AcquireRelease)
+      AO = llvm::AtomicOrdering::Release;
     // Initializations don't need to be atomic.
     if (!isInit)
       store->setAtomic(AO);
@@ -2043,10 +2048,10 @@ std::pair<RValue, llvm::Value *> CodeGenFunction::EmitAtomicCompareExchange(
   // maybe for address-space qualification.
   assert(!Expected.isAggregate() ||
          Expected.getAggregateAddress().getElementType() ==
-             Obj.getAddress().getElementType());
+             Obj.getAddress(*this).getElementType());
   assert(!Desired.isAggregate() ||
          Desired.getAggregateAddress().getElementType() ==
-             Obj.getAddress().getElementType());
+             Obj.getAddress(*this).getElementType());
   AtomicInfo Atomics(*this, Obj);
 
   return Atomics.EmitAtomicCompareExchange(Expected, Desired, Success, Failure,
@@ -2086,13 +2091,11 @@ void CodeGenFunction::EmitAtomicInit(Expr *init, LValue dest) {
     }
 
     // Evaluate the expression directly into the destination.
-    AggValueSlot slot = AggValueSlot::forLValue(dest,
-                                        AggValueSlot::IsNotDestructed,
-                                        AggValueSlot::DoesNotNeedGCBarriers,
-                                        AggValueSlot::IsNotAliased,
-                                        AggValueSlot::DoesNotOverlap,
-                                        Zeroed ? AggValueSlot::IsZeroed :
-                                                 AggValueSlot::IsNotZeroed);
+    AggValueSlot slot = AggValueSlot::forLValue(
+        dest, *this, AggValueSlot::IsNotDestructed,
+        AggValueSlot::DoesNotNeedGCBarriers, AggValueSlot::IsNotAliased,
+        AggValueSlot::DoesNotOverlap,
+        Zeroed ? AggValueSlot::IsZeroed : AggValueSlot::IsNotZeroed);
 
     EmitAggExpr(init, slot);
     return;

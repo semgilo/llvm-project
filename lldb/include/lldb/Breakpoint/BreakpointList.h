@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_BreakpointList_h_
-#define liblldb_BreakpointList_h_
+#ifndef LLDB_BREAKPOINT_BREAKPOINTLIST_H
+#define LLDB_BREAKPOINT_BREAKPOINTLIST_H
 
 #include <list>
 #include <mutex>
@@ -67,8 +67,10 @@ public:
   ///   The breakpoint name for which to search.
   ///
   /// \result
-  ///   \bfalse if the input name was not a legal breakpoint name.
-  bool FindBreakpointsByName(const char *name, BreakpointList &matching_bps);
+  ///   error if the input name was not a legal breakpoint name, vector
+  ///   of breakpoints otherwise.
+  llvm::Expected<std::vector<lldb::BreakpointSP>>
+  FindBreakpointsByName(const char *name);
 
   /// Returns the number of elements in this breakpoint list.
   ///
@@ -166,9 +168,10 @@ public:
   }
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(BreakpointList);
+  BreakpointList(const BreakpointList &) = delete;
+  const BreakpointList &operator=(const BreakpointList &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_BreakpointList_h_
+#endif // LLDB_BREAKPOINT_BREAKPOINTLIST_H

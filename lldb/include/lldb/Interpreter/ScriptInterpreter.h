@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ScriptInterpreter_h_
-#define liblldb_ScriptInterpreter_h_
+#ifndef LLDB_INTERPRETER_SCRIPTINTERPRETER_H
+#define LLDB_INTERPRETER_SCRIPTINTERPRETER_H
 
 #include "lldb/lldb-private.h"
 
@@ -29,7 +29,9 @@ public:
   virtual ~ScriptInterpreterLocker() = default;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(ScriptInterpreterLocker);
+  ScriptInterpreterLocker(const ScriptInterpreterLocker &) = delete;
+  const ScriptInterpreterLocker &
+  operator=(const ScriptInterpreterLocker &) = delete;
 };
 
 class ScriptInterpreter : public PluginInterface {
@@ -457,12 +459,9 @@ public:
   virtual bool CheckObjectExists(const char *name) { return false; }
 
   virtual bool
-  LoadScriptingModule(const char *filename, bool can_reload, bool init_session,
+  LoadScriptingModule(const char *filename, bool init_session,
                       lldb_private::Status &error,
-                      StructuredData::ObjectSP *module_sp = nullptr) {
-    error.SetErrorString("loading unimplemented");
-    return false;
-  }
+                      StructuredData::ObjectSP *module_sp = nullptr);
 
   virtual bool IsReservedWord(const char *word) { return false; }
 
@@ -491,4 +490,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_ScriptInterpreter_h_
+#endif // LLDB_INTERPRETER_SCRIPTINTERPRETER_H

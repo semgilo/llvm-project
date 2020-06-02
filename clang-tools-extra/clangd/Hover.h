@@ -9,9 +9,10 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_HOVER_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_HOVER_H
 
-#include "FormattedString.h"
 #include "ParsedAST.h"
 #include "Protocol.h"
+#include "support/Markup.h"
+#include "clang/Index/IndexSymbol.h"
 
 namespace clang {
 namespace clangd {
@@ -28,7 +29,7 @@ struct HoverInfo {
   /// - template <ParamType Name = DefaultType> class Foo {};
   struct Param {
     /// The pretty-printed parameter type, e.g. "int", or "typename" (in
-    /// TemplateParameters)
+    /// TemplateParameters), might be None for macro parameters.
     llvm::Optional<std::string> Type;
     /// None for unnamed parameters.
     llvm::Optional<std::string> Name;
@@ -53,17 +54,18 @@ struct HoverInfo {
   /// Name of the symbol, does not contain any "::".
   std::string Name;
   llvm::Optional<Range> SymRange;
-  /// Scope containing the symbol. e.g, "global namespace", "function x::Y"
-  /// - None for deduced types, e.g "auto", "decltype" keywords.
-  SymbolKind Kind;
+  index::SymbolKind Kind = index::SymbolKind::Unknown;
   std::string Documentation;
   /// Source code containing the definition of the symbol.
   std::string Definition;
 
+  /// Access specifier for declarations inside class/struct/unions, empty for
+  /// others.
+  std::string AccessSpecifier;
   /// Pretty-printed variable type.
   /// Set only for variables.
   llvm::Optional<std::string> Type;
-  /// Set for functions and lambadas.
+  /// Set for functions and lambdas.
   llvm::Optional<std::string> ReturnType;
   /// Set for functions, lambdas and macros with parameters.
   llvm::Optional<std::vector<Param>> Parameters;
@@ -71,10 +73,19 @@ struct HoverInfo {
   llvm::Optional<std::vector<Param>> TemplateParameters;
   /// Contains the evaluated value of the symbol if available.
   llvm::Optional<std::string> Value;
+  /// Contains the byte-size of fields and types where it's interesting.
+  llvm::Optional<uint64_t> Size;
+  /// Contains the offset of fields within the enclosing class.
+  llvm::Optional<uint64_t> Offset;
 
   /// Produce a user-readable information.
-  FormattedString present() const;
+  markup::Document present() const;
 };
+
+// Try to infer structure of a documentation comment (e.g. line breaks).
+// FIXME: move to another file so CodeComplete doesn't depend on Hover.
+void parseDocumentation(llvm::StringRef Input, markup::Document &Output);
+
 llvm::raw_ostream &operator<<(llvm::raw_ostream &, const HoverInfo::Param &);
 inline bool operator==(const HoverInfo::Param &LHS,
                        const HoverInfo::Param &RHS) {

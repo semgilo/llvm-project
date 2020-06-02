@@ -84,7 +84,7 @@ public:
     UP,
   };
 
-  static const WordType WORDTYPE_MAX = ~WordType(0);
+  static constexpr WordType WORDTYPE_MAX = ~WordType(0);
 
 private:
   /// This union is used to store the integer value. When the
@@ -388,6 +388,11 @@ public:
   ///
   /// \returns true if this APInt is positive.
   bool isStrictlyPositive() const { return isNonNegative() && !isNullValue(); }
+
+  /// Determine if this APInt Value is non-positive (<= 0).
+  ///
+  /// \returns true if this APInt is non-positive.
+  bool isNonPositive() const { return !isStrictlyPositive(); }
 
   /// Determine if all bits are set
   ///

@@ -14,6 +14,7 @@
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/DemandedBits.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/InstructionSimplify.h"
@@ -22,7 +23,6 @@
 #include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -719,6 +719,13 @@ bool RecurrenceDescriptor::isFirstOrderRecurrence(
 
     // We cannot sink terminator instructions.
     if (I->getParent()->getTerminator() == I)
+      return false;
+
+    // Do not try to sink an instruction multiple times (if multiple operands
+    // are first order recurrences).
+    // TODO: We can support this case, by sinking the instruction after the
+    // 'deepest' previous instruction.
+    if (SinkAfter.find(I) != SinkAfter.end())
       return false;
 
     if (DT->dominates(Previous, I)) // We already are good w/o sinking.

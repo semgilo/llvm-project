@@ -1,18 +1,16 @@
+include("${LIBC_SOURCE_DIR}/config/${LIBC_TARGET_OS}/${LIBC_TARGET_MACHINE}/entrypoints.txt")
+include("${LIBC_SOURCE_DIR}/config/${LIBC_TARGET_OS}/${LIBC_TARGET_MACHINE}/headers.txt")
 
 add_entrypoint_library(
   llvmlibc
   DEPENDS
-    # string.h entrypoints
-    ## C standard library entrypoints
-    strcpy
-    strcat
+  ${LIBC_ENTRYPOINTS}
 )
 
 add_entrypoint_library(
   llvmlibm
   DEPENDS
-    # math.h entrypoints
-    round
+  ${LIBM_ENTRYPOINTS}
 )
 
 add_redirector_library(

@@ -13,8 +13,15 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-:program:`lldb` is a fully featured debugger. It is a command line interface to
-the LLDB debugger library.
+:program:`lldb` is a next generation, high-performance debugger. It is built as
+a set of reusable components which highly leverage existing libraries in the
+larger LLVM Project, such as the Clang expression parser and LLVM disassembler.
+
+:program:`lldb` is the default debugger in Xcode on macOS and supports
+debugging C, Objective-C and C++ on the desktop and iOS devices and simulator.
+
+All of the code in the LLDB project is available under the Apache 2.0 License
+with LLVM exceptions.
 
 ATTACHING
 ---------
@@ -244,11 +251,16 @@ EXAMPLES
 
 The debugger can be started in several modes.
 
-Passing an executable as a positional argument prepares :program:`lldb` to
-debug the given executable. Arguments passed after -- are considered arguments
-to the debugged executable.
+Passing an executable as a positional argument prepares lldb to debug the given
+executable. To disambiguate between arguments passed to lldb and arguments
+passed to the debugged executable, arguments starting with a - must be passed
+after --.
 
-  lldb --arch x86_64 /path/to/program -- --arch arvm7
+  lldb --arch x86_64 /path/to/program program argument -- --arch arvm7
+
+For convenience, passing the executable after -- is also supported.
+
+  lldb --arch x86_64 -- /path/to/program program argument --arch arvm7
 
 Passing one of the attach options causes :program:`lldb` to immediately attach
 to the given process.
@@ -291,7 +303,14 @@ CONFIGURATION FILES
 -------------------
 
 :program:`lldb` reads things like settings, aliases and commands from the
-.lldbinit file. It will first look for ~/.lldbinit and load that first.
+.lldbinit file.
+
+First, it will read the application specific init file whose name is
+~/.lldbinit followed by a "-" and the name of the current program. This would
+be ~/.lldbinit-lldb for the command line :program:`lldb` and ~/.lldbinit-Xcode
+for Xcode. If there is no application specific init file, the global
+~/.lldbinit is read.
+
 Secondly, it will look for an .lldbinit file in the current working directory.
 For security reasons, :program:`lldb` will print a warning and not source this
 file by default. This behavior can be changed by changing the

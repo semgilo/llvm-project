@@ -13,13 +13,15 @@
 # CONTENT-NEXT: Address: 0x0
 # CONTENT-NEXT: Offset: 0x40
 # CONTENT-NEXT: Size: 3
-# CONTENT-NEXT: Link: 4
+# CONTENT-NEXT: Link: 2
 # CONTENT-NEXT: Info: 0
 # CONTENT-NEXT: AddressAlignment: 0
 # CONTENT-NEXT: EntrySize: 0
 # CONTENT-NEXT: SectionData (
 # CONTENT-NEXT:   0000: 001122 |
 # CONTENT-NEXT: )
+# CONTENT:      Index: 2
+# CONTENT-NEXT: Name: .dynsym (9)
 
 --- !ELF
 FileHeader:
@@ -32,9 +34,7 @@ Sections:
     Type:  SHT_GNU_HASH
     Content: "001122"
 ## Used to trigger .dynsym creation.
-DynamicSymbols:
-  - Name:    foo
-    Binding: STB_GLOBAL
+DynamicSymbols: []
 
 ## Check we can use "Header", "BloomFilter", "HashBuckets" and "HashValues" keys to describe
 ## the hash section. Check we can set sh_link to any arbitrary value. Check both ELFCLASS32 and 64 bit output.

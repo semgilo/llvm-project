@@ -75,6 +75,7 @@ class LLVM_LIBRARY_VISIBILITY ARMTargetInfo : public TargetInfo {
   unsigned DSP : 1;
   unsigned Unaligned : 1;
   unsigned DotProd : 1;
+  unsigned HasMatMul : 1;
 
   enum {
     LDREX_B = (1 << 0), /// byte (8-bit)
@@ -108,6 +109,7 @@ class LLVM_LIBRARY_VISIBILITY ARMTargetInfo : public TargetInfo {
   bool supportsThumb2() const;
   bool hasMVE() const;
   bool hasMVEFloat() const;
+  bool hasCDE() const;
 
   StringRef getCPUAttr() const;
   StringRef getCPUProfile() const;
@@ -148,9 +150,10 @@ public:
 
   void getTargetDefinesARMV81A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
-
   void getTargetDefinesARMV82A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
+  void getTargetDefinesARMV83A(const LangOptions &Opts,
+                                 MacroBuilder &Builder) const;
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
 
@@ -161,9 +164,6 @@ public:
 
   ArrayRef<const char *> getGCCRegNames() const override;
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override;
-  bool validateGlobalRegisterVariable(StringRef RegName, unsigned RegSize,
-                                      bool &HasSizeMismatch) const override;
-  bool isRegisterReservedGlobally(StringRef RegName) const override;
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &Info) const override;
   std::string convertConstraint(const char *&Constraint) const override;
@@ -182,6 +182,8 @@ public:
   int getEHDataRegisterNumber(unsigned RegNo) const override;
 
   bool hasSjLjLowering() const override;
+
+  bool hasExtIntType() const override { return true; }
 };
 
 class LLVM_LIBRARY_VISIBILITY ARMleTargetInfo : public ARMTargetInfo {
