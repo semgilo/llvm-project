@@ -1777,6 +1777,21 @@ class Cursor(Structure):
         return self._tu
 
     @property
+    def overridden(self):
+        cursors = POINTER(Cursor)()
+        num = c_uint()
+        conf.lib.clang_getOverriddenCursors(self, byref(cursors), byref(num))
+
+        updcursors = []
+        for i in range(0, int(num.value)):
+            c = cursors[i]
+            updcursors.append(c)
+            conf.lib.clang_disposeOverriddenCursors(cursors)
+
+        return updcursors
+
+
+    @property
     def referenced(self):
         """
         For a cursor that is a reference, returns a cursor
